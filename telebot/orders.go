@@ -38,19 +38,33 @@ func (o TOrder) New() *TOrder {
 }
 
 func (o *TOrder) AddToDb(tele_id int64) int {
-	o.ID = helper.Insert(
-		"orders",
-		[]map[string]any{{
-			"id_customer": tele_id,
-			"frame":       o.Frame,
-			"net":         o.Net,
-			"datetime":    o.DateTime,
-			"is_pickup":   o.IsPickup,
-			"sizes":       strings.Trim(fmt.Sprint(o.Sizes), "[]"),
-		}},
-		"id",
+	sql := fmt.Sprintf(
+		"Select * from updateorder(%d, %d, %d, '%s', %s)",
+		o.CustomerID,
+		o.Frame,
+		o.Net,
+		strings.Trim(fmt.Sprint(o.Sizes), "[]"),
+		ss.ToString(o.IsPickup),
 	)
-	return o.ID
+	result := helper.Query(sql, []string{"id"})
+	if len(result) == 0 {
+		ss.Log("ERROR", "Order.AddToDB", "Встроенная функция UpdateOrder вернула ошибку")
+		return 0
+	}
+	return ss.ToInt(result[0]["id"])
+	// o.ID = helper.Insert(
+	// 	"orders",
+	// 	[]map[string]any{{
+	// 		"id_customer": tele_id,
+	// 		"frame":       o.Frame,
+	// 		"net":         o.Net,
+	// 		"datetime":    o.DateTime,
+	// 		"is_pickup":   o.IsPickup,
+	// 		"sizes":       strings.Trim(fmt.Sprint(o.Sizes), "[]"),
+	// 	}},
+	// 	"id",
+	// )
+	// return o.ID
 }
 
 func (o TOrder) FromDb(id int) *TOrder {

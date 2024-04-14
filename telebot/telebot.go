@@ -237,6 +237,7 @@ func validateOrder(ctx tele.Context) error {
 	}
 	user.Order.IsPickup = strings.HasSuffix(ctx.Data(), "1")
 	user.Order.DateTime = ss.GetDateTime()
+	user.Order.CustomerID = user.TeleID
 	go func() {
 		user.Order.AddToDb(user.TeleID)
 		Admin_BroadcastOrder(ctx, *user, true, ORDER_NEW)

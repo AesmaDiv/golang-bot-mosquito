@@ -110,16 +110,8 @@ func Admin_ReactToOrder(ctx tele.Context, react tele.MessageReaction) {
 		return
 	}
 	user := parseUserWithOrder(items[0])
-	switch worker := user.Order.WorkerID; {
-	case worker < 1:
-		_ = user.Order.UpdateWorker(id_order, id_worker)
-		Message_Delete(ctx.Bot(), react.MessageID, react.Chat.ID)
-		ss.Log("SUCCESS", "Admin_ReactToOrder", fmt.Sprintf("Заказ %d привязан исполнителю %d", id_order, id_worker))
-	case worker == id_worker:
-		_ = user.Order.UpdateWorker(id_order, 0)
-		Message_Delete(ctx.Bot(), react.MessageID, react.Chat.ID)
-		Admin_BroadcastOrder(ctx, user, true, ORDER_FREE)
-		ss.Log("SUCCESS", "Admin_ReactToOrder", fmt.Sprintf("Заказ %d теперь свободен", id_order))
+	if !checkToDelete(ctx, user, react) {
+		updateOrderWorker(ctx, user, react, id_order, id_worker)
 	}
 }
 
@@ -136,5 +128,31 @@ func parseUserWithOrder(item map[string]any) TUser {
 		FirstName: ss.ToString(item["fname"]),
 		Phone:     ss.ToString(item["phone"]),
 		Order:     TOrder{}.FromMap(item),
+	}
+}
+
+func checkToDelete(ctx tele.Context, user TUser, react tele.MessageReaction) bool {
+	reactions := react.NewReaction
+	if len(reactions) == 0 || ss.ArrLastRef(reactions).Emoji != "👎" {
+		return false
+	}
+	helper.Delete("orders", map[string]any{"id": user.Order.ID})
+	Message_Delete(ctx.Bot(), react.MessageID, react.Chat.ID)
+	ss.Log("SUCCESS", "Admin_ReactToOrder", fmt.Sprintf("Заказ %d <u>удалён</u> из БД", user.Order.ID))
+
+	return true
+}
+
+func updateOrderWorker(ctx tele.Context, user TUser, react tele.MessageReaction, id_order int, id_worker int64) {
+	switch worker := user.Order.WorkerID; {
+	case worker < 1:
+		_ = user.Order.UpdateWorker(id_order, id_worker)
+		Message_Delete(ctx.Bot(), react.MessageID, react.Chat.ID)
+		ss.Log("SUCCESS", "Admin_ReactToOrder", fmt.Sprintf("Заказ %d привязан исполнителю %d", id_order, id_worker))
+	case worker == id_worker:
+		_ = user.Order.UpdateWorker(id_order, 0)
+		Message_Delete(ctx.Bot(), react.MessageID, react.Chat.ID)
+		Admin_BroadcastOrder(ctx, user, true, ORDER_FREE)
+		ss.Log("SUCCESS", "Admin_ReactToOrder", fmt.Sprintf("Заказ %d теперь свободен", id_order))
 	}
 }
