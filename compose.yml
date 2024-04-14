@@ -1,0 +1,29 @@
+#docker-compose.yml
+# services:
+#   db:
+#     image: postgres
+#     restart: always
+#     container_name: db_tele
+#     environment:
+#       POSTGRES_USER: postgres
+#       POSTGRES_PASSWORD: 123
+#       POSTGRES_DB: db_tele
+#       PGDATA: /pgdata
+#     volumes:
+#       - ~/DB/tele_bot_db:/pgdata
+
+
+#docker-compose
+services:
+  postgres:
+    image: postgres
+    container_name: db_telegram
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: telegram
+      PGDATA: /pgdata
+    ports:
+      - 5432:5432
+    volumes:
+      - ~/Develop/DataBases/Postgres/Telegram:/pgdata
