@@ -83,7 +83,7 @@ func (o TOrder) FromUser(user *TUser) *TOrder {
 
 func (o TOrder) FromMap(items map[string]any) *TOrder {
 	sizes := []int{}
-	if s := strings.Split(ss.ToString(items["comments"]), " "); len(s) > 1 {
+	if s := strings.Split(ss.ToString(items["sizes"]), " "); len(s) > 1 {
 		sizes = ss.ArrayStr2Int(s)
 	}
 	return &TOrder{
@@ -134,7 +134,7 @@ func (o *TOrder) Display(for_admin bool) string {
 		return ""
 	}
 	per_size := o.getPriceForSize(per_sq_price)
-	result := fmt.Sprintf("%s%s%s%s", prefix, per_sq_text, per_size, suffix)
+	result := fmt.Sprintf("%s<code>%s%s</code>%s", prefix, per_sq_text, per_size, suffix)
 
 	return result
 }
@@ -143,7 +143,9 @@ func (o *TOrder) getPriceForSquare() (float32, string) {
 	if o.Frame > -1 && o.Net > -1 {
 		price := float32(PRICES[o.Frame][o.Net])
 		result := fmt.Sprintf(
-			"<i>рамка:</i>   %s\n<i>сетка:</i>    %s\n<i>цена:</i>      %.2f руб. за м²\n",
+			" <i>рамка:</i>  %s\n"+
+				" <i>сетка:</i>  %s\n"+
+				" <i>цена:</i>   %.2f руб. за м²\n",
 			FRAMES[o.Frame], NETS[o.Net], price)
 
 		return price, result
@@ -155,13 +157,13 @@ func (o *TOrder) getPriceForSquare() (float32, string) {
 func (o *TOrder) getPriceForSize(price float32) string {
 	var result string
 	if len(o.Sizes) > 0 {
-		result = "<i>размеры:</i>\n"
+		result = " <i>размеры:</i>\n"
 		for i := 0; i < len(o.Sizes); i += 2 {
 			w := o.Sizes[i]
 			h := o.Sizes[i+1]
 			s := float32(w) * float32(h) / 1000000
 			p := price * s
-			result += fmt.Sprintf("  %dx%d = %.2f руб\n", w, h, p)
+			result += fmt.Sprintf("   %dx%d = %.2f руб\n", w, h, p)
 		}
 	}
 

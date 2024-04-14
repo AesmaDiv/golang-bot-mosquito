@@ -7,6 +7,8 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
+var Markups map[string]*tele.ReplyMarkup
+
 func CreateMarkup(bot *tele.Bot, f tele.HandlerFunc) *tele.ReplyMarkup {
 	markup := &tele.ReplyMarkup{}
 	l := ss.GetMaxLength(FRAMES, NETS)
@@ -63,6 +65,7 @@ func CreateButtonRows(bot *tele.Bot, f tele.HandlerFunc, options []string, prefi
 
 	return markup
 }
+
 func CreateOptionCols(bot *tele.Bot, f tele.HandlerFunc, options []string, prefix string) *tele.ReplyMarkup {
 	markup := &tele.ReplyMarkup{}
 	var rows []tele.Row

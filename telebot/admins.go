@@ -13,28 +13,16 @@ var ADMIN_GROUP = &tele.Chat{
 	Type: "group",
 }
 
-func Admin_CreatePanel(ctx tele.Context) error {
-	markup := CreateButtonRows(ctx.Bot(), handleButton, ON_ADMIN, "admin")
-	answer := MSG_ADMIN
-
-	return ctx.Send(answer, markup)
-}
-
-func Admin_GetData(helper db.Helper, data string, ctx tele.Context) error {
+func Admin_GetData(helper db.Helper, data string, ctx tele.Context) {
 	//var answer string
 	switch data {
 	case ADMIN_CUSTOMERS:
 		go Admin_GetUsers(ctx, false)
 	case ADMIN_MY_ORDERS:
 		go Admin_GetOrders(ctx, false, false)
-		return nil
 	case ADMIN_FREE_ORDERS:
 		go Admin_GetOrders(ctx, true, false)
-		return nil
-		// answer = requestOrders(helper, "Where is_closed=false;")
 	}
-
-	return nil //ctx.Send(answer, tele.ModeHTML)
 }
 
 func Admin_GetUsers(ctx tele.Context, is_admins bool) {
@@ -51,7 +39,7 @@ func Admin_GetUsers(ctx tele.Context, is_admins bool) {
 			answer += user.Display()
 		}
 	}
-	ctx.Send(answer, tele.ModeHTML)
+	ctx.Send(answer)
 }
 
 func Admin_GetOrders(ctx tele.Context, free, to_group bool) {
@@ -62,9 +50,13 @@ func Admin_GetOrders(ctx tele.Context, free, to_group bool) {
 		title = ORDER_FREE
 	}
 	items := TOrder{}.GetOrdersFull(where)
-	for _, item := range items {
-		user := parseUserWithOrder(item)
-		Admin_BroadcastOrder(ctx, user, to_group, title)
+	if len(items) > 0 {
+		for _, item := range items {
+			user := parseUserWithOrder(item)
+			Admin_BroadcastOrder(ctx, user, to_group, title)
+		}
+	} else {
+		ctx.Send(fmt.Sprintf("Список %s заказов пуст.", ss.Iif(free, "свободных", "Ваших")))
 	}
 }
 
@@ -85,7 +77,7 @@ func Admin_BroadcastOrder(ctx tele.Context, user TUser, to_group bool, title str
 	if !to_group {
 		chat = ctx.Chat()
 	}
-	msg, err := ctx.Bot().Send(chat, answer, tele.ModeHTML)
+	msg, err := ctx.Bot().Send(chat, answer)
 	if err != nil {
 		ss.Log("ERROR", "Admin_BroadcastOrder", err.Error())
 		return

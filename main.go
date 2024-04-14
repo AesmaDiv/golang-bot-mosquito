@@ -44,6 +44,7 @@ func main() {
 				"message_reaction_count",
 			},
 		},
+		ParseMode: tele.ModeHTML,
 	}
 	bot, err := tele.NewBot(pref)
 	ss.CheckError(err)
@@ -52,6 +53,7 @@ func main() {
 	bot.Handle(tele.OnText, tb.HandleMessage)
 	bot.Handle(tele.OnReaction, tb.HandleReaction)
 
+	tb.PrepareMarkups(bot)
 	// bot.Handle(tele.OnAddedToGroup, tb.HandleGroup)
 	ss.Log("INFO", "TELEBOT", "Запуск бота..")
 	bot.Start()

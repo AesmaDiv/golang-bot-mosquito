@@ -33,6 +33,17 @@ func DisconnectFromDb() {
 	helper.Disconnect()
 }
 
+func PrepareMarkups(bot *tele.Bot) {
+	Markups = map[string]*tele.ReplyMarkup{
+		"OnStart":  CreateButtonRows(bot, handleButton, append(ON_START, "ADMIN"), "option"),
+		"OnAdmin":  CreateButtonRows(bot, handleButton, ON_ADMIN, "admin"),
+		"OnFrames": CreateOptionCols(bot, handleButton, FRAMES, "frame"),
+		"OnNets":   CreateOptionCols(bot, handleButton, NETS, "net"),
+		"OnOrder":  CreateOptionCols(bot, handleButton, ON_ORDER, "order"),
+	}
+	ss.Log("INFO", "PrepareMarkups", "Подготовка набора кнопок")
+}
+
 func HandleStart(ctx tele.Context) error {
 	// идентификация юзера
 	sender := ctx.Sender()
@@ -58,14 +69,14 @@ func HandleStart(ctx tele.Context) error {
 	// приветствие
 	answer := fmt.Sprintf("👋  %s, %s!\n%s", ss.GenGreeting(), user.FirstName, MSG_START)
 	// начальные кнопки
-	buttons := ON_START[:]
-	// если пользователь админ - добавить админку
-	// if user.IsAdmin {
-	buttons = append(buttons, "АДМИНКА")
-	// }
-	markup := CreateButtonRows(ctx.Bot(), handleButton, buttons, "option")
+	// buttons := ON_START[:]
+	// // если пользователь админ - добавить админку
+	// // if user.IsAdmin {
+	// buttons = append(buttons, "АДМИНКА")
+	// // }
+	// markup := CreateButtonRows(ctx.Bot(), handleButton, buttons, "option")
 
-	return ctx.Send(answer, markup)
+	return ctx.Send(answer, Markups["OnStart"])
 }
 
 func handleButton(ctx tele.Context) error {
@@ -76,9 +87,9 @@ func handleButton(ctx tele.Context) error {
 
 	switch data := ctx.Data(); {
 	case data == BTN_ADMIN:
-		return Admin_CreatePanel(ctx)
+		return ctx.Send(MSG_ADMIN, Markups["OnAdmin"])
 	case strings.HasPrefix(data, "admin"):
-		return Admin_GetData(helper, data, ctx)
+		Admin_GetData(helper, data, ctx)
 
 	case data == BTN_SHOW_OPTIONS:
 		return create_Frames_n_Nets(ctx)
@@ -155,7 +166,7 @@ func handleMessage_Users(ctx tele.Context, user *TUser) error {
 	}
 
 	ss.Log("ERROR", "handleMessage", "Некорректный запрос")
-	return ctx.Send(ctx.Message().Text, tele.ModeHTML)
+	return ctx.Send(ctx.Message().Text)
 }
 
 func handleMessage_Admins(ctx tele.Context, user *TUser) error {
@@ -165,19 +176,13 @@ func handleMessage_Admins(ctx tele.Context, user *TUser) error {
 }
 
 func create_Frames_n_Nets(ctx tele.Context) error {
-	markup := &tele.ReplyMarkup{}
 	// отправка списка рамок
-	answer := MSG_FRAME
-	markup = CreateOptionCols(ctx.Bot(), handleButton, FRAMES, "frame")
-	err := ctx.Send(answer, markup, tele.ModeHTML)
+	err := ctx.Send(MSG_FRAME, Markups["OnFrames"])
 	if err != nil {
 		return err
 	}
 	// отправка списка сеток
-	answer = MSG_NET
-	markup = CreateOptionCols(ctx.Bot(), handleButton, NETS, "net")
-
-	return ctx.Send(answer, markup, tele.ModeHTML)
+	return ctx.Send(MSG_NET, Markups["OnNets"])
 }
 
 func process_Frames_n_Nets(ctx tele.Context) error {
@@ -207,14 +212,12 @@ func send_OrderInfo(ctx tele.Context) error {
 	if answer == "" {
 		return nil
 	}
-	markup := CreateOptionCols(ctx.Bot(), handleButton, ON_ORDER, "order")
-
 	if user.MessageOrder == nil {
-		msg, err := ctx.Bot().Send(ctx.Recipient(), answer, markup, tele.ModeHTML)
+		msg, err := ctx.Bot().Send(ctx.Recipient(), answer, Markups["OnOrder"])
 		user.MessageOrder = msg
 		return err
 	}
-	msg, err := ctx.Bot().Edit(user.MessageOrder, answer, markup, tele.ModeHTML)
+	msg, err := ctx.Bot().Edit(user.MessageOrder, answer, Markups["OnOrder"])
 	if err == nil {
 		user.MessageOrder = msg
 	}
