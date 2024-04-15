@@ -138,7 +138,7 @@ func checkToDelete(ctx tele.Context, user TUser, react tele.MessageReaction) boo
 	}
 	helper.Delete("orders", map[string]any{"id": user.Order.ID})
 	Message_Delete(ctx.Bot(), react.MessageID, react.Chat.ID)
-	ss.Log("SUCCESS", "Admin_ReactToOrder", fmt.Sprintf("Заказ %d <u>удалён</u> из БД", user.Order.ID))
+	ss.Log("INFO", "Admin_ReactToOrder", fmt.Sprintf("Заказ %d удалён из БД", user.Order.ID))
 
 	return true
 }
