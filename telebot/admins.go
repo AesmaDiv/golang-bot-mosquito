@@ -51,8 +51,11 @@ func Admin_GetOrders(ctx tele.Context, free, to_group bool) {
 	}
 	items := TOrder{}.GetOrdersFull(where)
 	if len(items) > 0 {
-		var chat *tele.Chat = ss.Iif(to_group, ADMIN_GROUP, ctx.Chat())
-		OrderMessage{}.Clean(chat.ID)
+		var chat *tele.Chat = ADMIN_GROUP
+		if !to_group {
+			chat = ctx.Chat()
+			Message_DeleteAll(ctx.Bot(), chat.ID)
+		}
 		for _, item := range items {
 			user := parseUserWithOrder(item)
 			Admin_BroadcastOrder(ctx, user, chat, title)
