@@ -51,16 +51,18 @@ func Admin_GetOrders(ctx tele.Context, free, to_group bool) {
 	}
 	items := TOrder{}.GetOrdersFull(where)
 	if len(items) > 0 {
+		var chat *tele.Chat = ss.Iif(to_group, ADMIN_GROUP, ctx.Chat())
+		OrderMessage{}.Clean(chat.ID)
 		for _, item := range items {
 			user := parseUserWithOrder(item)
-			Admin_BroadcastOrder(ctx, user, to_group, title)
+			Admin_BroadcastOrder(ctx, user, chat, title)
 		}
 	} else {
 		ctx.Send(fmt.Sprintf("Список %s заказов пуст.", ss.Iif(free, "свободных", "Ваших")))
 	}
 }
 
-func Admin_BroadcastOrder(ctx tele.Context, user TUser, to_group bool, title string) {
+func Admin_BroadcastOrder(ctx tele.Context, user TUser, chat *tele.Chat, title string) {
 	user_info := parseUserInfo(map[string]any{
 		"datetime": user.Order.DateTime,
 		"phone":    user.Phone,
@@ -73,10 +75,6 @@ func Admin_BroadcastOrder(ctx tele.Context, user TUser, to_group bool, title str
 		order_info,
 		ss.Iif(user.Order.IsPickup, "самовывоз", "заказ замера"),
 	)
-	var chat *tele.Chat = ADMIN_GROUP
-	if !to_group {
-		chat = ctx.Chat()
-	}
 	msg, err := ctx.Bot().Send(chat, answer)
 	if err != nil {
 		ss.Log("ERROR", "Admin_BroadcastOrder", err.Error())
@@ -152,7 +150,7 @@ func updateOrderWorker(ctx tele.Context, user TUser, react tele.MessageReaction,
 	case worker == id_worker:
 		_ = user.Order.UpdateWorker(id_order, 0)
 		Message_Delete(ctx.Bot(), react.MessageID, react.Chat.ID)
-		Admin_BroadcastOrder(ctx, user, true, ORDER_FREE)
+		Admin_BroadcastOrder(ctx, user, ADMIN_GROUP, ORDER_FREE)
 		ss.Log("SUCCESS", "Admin_ReactToOrder", fmt.Sprintf("Заказ %d теперь свободен", id_order))
 	}
 }

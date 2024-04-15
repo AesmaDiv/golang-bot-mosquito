@@ -75,7 +75,7 @@ func validateOrder(ctx tele.Context) error {
 	user.Order.CustomerID = user.TeleID
 	go func() {
 		user.Order.AddToDb(user.TeleID)
-		Admin_BroadcastOrder(ctx, *user, true, ORDER_NEW)
+		Admin_BroadcastOrder(ctx, *user, ADMIN_GROUP, ORDER_NEW)
 	}()
 	answer := answer_WillCallYou(user)
 

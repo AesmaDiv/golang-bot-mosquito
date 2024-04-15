@@ -48,6 +48,14 @@ func Message_Delete(bot *tele.Bot, id_msg int, id_chat int64) {
 		}
 	}
 }
+func Message_DeleteAll(bot *tele.Bot, id_chat int64) {
+	if items, found := refs_to_msgs[id_chat]; found {
+		for _, item := range items {
+			bot.Delete(item.Message)
+		}
+	}
+	OrderMessage{}.Clean(id_chat)
+}
 
 func (om OrderMessage) Clean(id_chat int64) {
 	delete(refs_to_msgs, id_chat)
