@@ -3,7 +3,6 @@ package sugar
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"time"
 )
 
@@ -64,25 +63,47 @@ func ReorderDesc[T comparable](arr1, arr2 []T) ([]T, []T, int, int) {
 func ToString(x any) string {
 	return Iif(x == nil, "", fmt.Sprintf("%v", x))
 }
+func ToBool(x any) bool {
+	if val, ok := x.(bool); ok {
+		return val
+	}
+	return false
+}
 func ToInt(x any) int {
-	val, err := strconv.Atoi(ToString(x))
-	return Iif(err != nil, -1, val)
+	if val, ok := x.(int); ok {
+		return val
+	}
+	return 0
 }
 func ToUInt(x any) uint {
-	val := ToInt(x)
-	return Iif(val < 0, ^uint(0), uint(val))
+	if val, ok := x.(uint); ok {
+		return val
+	}
+	return 0
 }
 func ToInt64(x any) int64 {
-	result, err := strconv.ParseInt(ToString(x), 10, 64)
-	return Iif(err == nil, result, -1)
+	if val, ok := x.(int64); ok {
+		return val
+	}
+	return 0
 }
 func ToUInt64(x any) uint64 {
-	val := ToInt64(x)
-	return Iif(val < 0, ^uint64(0), uint64(val))
+	if val, ok := x.(uint64); ok {
+		return val
+	}
+	return 0
 }
-func ToBool(x any) bool {
-	result, err := strconv.ParseBool(ToString(x))
-	return Iif(err == nil, result, false)
+func ToFloat(x any) float32 {
+	if val, ok := x.(float32); ok {
+		return val
+	}
+	return 0
+}
+func ToFloat64(x any) float64 {
+	if val, ok := x.(float64); ok {
+		return val
+	}
+	return 0
 }
 
 func Log(state string, name, msg string) {
