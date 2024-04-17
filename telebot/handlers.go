@@ -125,6 +125,9 @@ func HandleReaction(ctx tele.Context) error {
 
 func HandleMedia(ctx tele.Context) error {
 	user := TUser{}.Get(ctx.Sender().ID)
+	if user == nil {
+		return nil
+	}
 	if user.Status != EXP_MEDIA {
 		return nil
 	}
@@ -141,11 +144,6 @@ func HandleMedia(ctx tele.Context) error {
 	broadcastMedia(ctx, *user, ADMIN_GROUP, ORDER_MEDIA)
 
 	return ctx.Send(answer_WillCallYou(user))
-}
-
-func HandleGroup(ctx tele.Context) error {
-	// ADMIN_GROUP = ctx.Chat()
-	return nil
 }
 
 func handleMessage_Group(ctx tele.Context) error {
@@ -177,9 +175,13 @@ func handleMessage_Users(ctx tele.Context, user *TUser) error {
 
 		return send_OrderInfo(ctx)
 	}
+	ss.Log(
+		"ERROR",
+		"handleMessage",
+		fmt.Sprintf("Пользователь %d:: %s", ctx.Sender().ID, ctx.Message().Text),
+	)
 
-	ss.Log("ERROR", "handleMessage", "Некорректный запрос")
-	return ctx.Send(ctx.Message().Text)
+	return nil
 }
 
 func handleMessage_Admins(ctx tele.Context, user *TUser) error {
