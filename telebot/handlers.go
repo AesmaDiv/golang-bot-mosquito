@@ -50,7 +50,7 @@ func HandleStart(ctx tele.Context) error {
 	if sender.ID != ctx.Chat().ID {
 		return ctx.Send(MSG_NOSTART)
 	}
-	user := TUser{}.Get(helper, sender.ID)
+	user := TUser{}.Get(sender.ID)
 	if user == nil {
 		// если не нашли - добавляем
 		user = TUser{}.New(sender.ID, ctx.Chat().ID, sender.Username, sender.FirstName)
@@ -88,7 +88,7 @@ func handleButton(ctx tele.Context) error {
 		return create_Frames_n_Nets(ctx)
 	case data == BTN_SEND_MEDIA:
 		// TODO
-		return send_RequestMedia(ctx)
+		return process_RequestMedia(ctx)
 	case data == BTN_REQUEST_CALL:
 		return process_RequestCall(ctx)
 
@@ -110,7 +110,7 @@ func HandleMessage(ctx tele.Context) error {
 	if !isPrivate(ctx) {
 		return handleMessage_Group(ctx)
 	}
-	user := TUser{}.Get(helper, ctx.Sender().ID)
+	user := TUser{}.Get(ctx.Sender().ID)
 	if user.IsAdmin {
 		return handleMessage_Admins(ctx, user)
 	}
@@ -121,6 +121,26 @@ func HandleReaction(ctx tele.Context) error {
 	reaction := ctx.Update().MessageReaction
 	go Admin_ReactToOrder(ctx, *reaction)
 	return nil
+}
+
+func HandleMedia(ctx tele.Context) error {
+	user := TUser{}.Get(ctx.Sender().ID)
+	if user.Status != EXP_MEDIA {
+		return nil
+	}
+	message := ctx.Message()
+	if message.Video == nil && message.Photo == nil {
+		return nil
+	}
+	media_chan <- ctx.Message()
+	contact := process_Contact(user, ctx.Message().Text)
+	if contact == "" && user.Phone == "" {
+		user.Status = EXP_CONTACT
+		return ctx.Send("Укажите, пожалуйста, <b>номер Вашего телефона и Имя</b>")
+	}
+	broadcastMedia(ctx, *user, ADMIN_GROUP, ORDER_MEDIA)
+
+	return ctx.Send(answer_WillCallYou(user))
 }
 
 func HandleGroup(ctx tele.Context) error {

@@ -52,6 +52,7 @@ func main() {
 	bot.Handle("/start", tb.HandleStart)
 	bot.Handle(tele.OnText, tb.HandleMessage)
 	bot.Handle(tele.OnReaction, tb.HandleReaction)
+	bot.Handle(tele.OnMedia, tb.HandleMedia)
 
 	tb.PrepareMarkups(bot)
 	// bot.Handle(tele.OnAddedToGroup, tb.HandleGroup)

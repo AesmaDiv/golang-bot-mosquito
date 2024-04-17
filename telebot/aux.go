@@ -8,6 +8,8 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
+var media_chan = make(chan *tele.Message, 10)
+
 func create_Frames_n_Nets(ctx tele.Context) error {
 	// отправка списка рамок
 	err := ctx.Send(MSG_FRAME, Markups["OnFrames"])
@@ -19,7 +21,7 @@ func create_Frames_n_Nets(ctx tele.Context) error {
 }
 
 func process_Frames_n_Nets(ctx tele.Context) error {
-	user := TUser{}.Get(helper, ctx.Sender().ID)
+	user := TUser{}.Get(ctx.Sender().ID)
 	order := TOrder{}.FromUser(user)
 	order.ParseOptions(ctx.Data())
 	user.Status = EXP_SIZES
@@ -27,8 +29,22 @@ func process_Frames_n_Nets(ctx tele.Context) error {
 	return send_OrderInfo(ctx)
 }
 
+func process_RequestMedia(ctx tele.Context) error {
+	user := TUser{}.Get(ctx.Sender().ID)
+	if user == nil {
+		ss.Log("ERROR", "processRequestMedia", "Не удалось найти пользователя ни в кэше, ни в БД")
+		return ctx.Send(ERR_RESTART)
+	}
+	user.Status = EXP_MEDIA
+	answer := MSG_MEDIA
+	if user.Phone == "" {
+		answer += ",\nсодержащему <b>номер Вашего телефона и Имя.</b>"
+	}
+	return ctx.Send(answer)
+}
+
 func process_RequestCall(ctx tele.Context) error {
-	answer, user := "", TUser{}.Get(helper, ctx.Sender().ID)
+	answer, user := "", TUser{}.Get(ctx.Sender().ID)
 	if user.Phone == "" {
 		answer = MSG_ASKPHONE
 		user.Status = EXP_CONTACT
@@ -41,7 +57,7 @@ func process_RequestCall(ctx tele.Context) error {
 }
 
 func send_OrderInfo(ctx tele.Context) error {
-	user := TUser{}.Get(helper, ctx.Sender().ID)
+	user := TUser{}.Get(ctx.Sender().ID)
 	order := TOrder{}.FromUser(user)
 	answer := order.Display(false)
 	if answer == "" {
@@ -60,12 +76,8 @@ func send_OrderInfo(ctx tele.Context) error {
 	return err
 }
 
-func send_RequestMedia(ctx tele.Context) error {
-	return ctx.Send(MSG_MEDIA)
-}
-
 func validateOrder(ctx tele.Context) error {
-	user := TUser{}.Get(helper, ctx.Sender().ID)
+	user := TUser{}.Get(ctx.Sender().ID)
 	if user.Phone == "" {
 		user.Status = EXP_CONTACT
 		return ctx.Send(MSG_ASKPHONE)
@@ -109,4 +121,46 @@ func isPrivate(ctx tele.Context) bool {
 		return true
 	}
 	return false
+}
+
+func broadcastMessage(ctx tele.Context, user TUser, chat *tele.Chat, title string) {
+	user_info := parseUserInfo(map[string]any{
+		"datetime": user.Order.DateTime,
+		"phone":    user.Phone,
+		"fname":    user.FirstName,
+	})
+	order_info := user.Order.Display(true)
+	answer := fmt.Sprintf("%s\n%s%s- %s\n",
+		title,
+		user_info,
+		order_info,
+		ss.Iif(user.Order.IsPickup, "самовывоз", "заказ замера"),
+	)
+	msg, err := ctx.Bot().Send(chat, answer)
+	if err != nil {
+		ss.Log("ERROR", "Admin_BroadcastOrder", err.Error())
+		return
+	}
+	OrderMessage{OrderID: user.Order.ID, Message: msg}.Add(chat.ID)
+}
+
+func broadcastMedia(ctx tele.Context, user TUser, chat *tele.Chat, title string) {
+	user_info := parseUserInfo(map[string]any{
+		"datetime": ss.GetDateTime(),
+		"phone":    user.Phone,
+		"fname":    user.FirstName,
+	})
+	answer := fmt.Sprintf("%s\n%s\n", title, user_info)
+	media := <-media_chan
+	album := tele.Album{}
+	if photo := media.Photo; photo != nil {
+		photo.Caption = answer
+		album = append(album, photo)
+	}
+	if video := media.Video; video != nil {
+		video.Caption = answer
+		album = append(album, video)
+	}
+	ctx.Bot().SendAlbum(chat, album, tele.ModeHTML)
+	// _ = msg //OrderMessage{OrderID: user.Order.ID, Message: msg}.Add(chat.ID)
 }

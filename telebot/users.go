@@ -44,7 +44,7 @@ func (u TUser) New(id int64, chat_id int64, username string, firstname string) *
 	}
 }
 
-func (u TUser) Get(helper db.Helper, id int64) *TUser {
+func (u TUser) Get(id int64) *TUser {
 	var user *TUser
 	// сначала ищу в кэше
 	user, found := USERS[id]

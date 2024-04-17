@@ -66,24 +66,11 @@ func Admin_GetOrders(ctx tele.Context, free, to_group bool) {
 }
 
 func Admin_BroadcastOrder(ctx tele.Context, user TUser, chat *tele.Chat, title string) {
-	user_info := parseUserInfo(map[string]any{
-		"datetime": user.Order.DateTime,
-		"phone":    user.Phone,
-		"fname":    user.FirstName,
-	})
-	order_info := user.Order.Display(true)
-	answer := fmt.Sprintf("%s\n%s%s- %s\n",
-		title,
-		user_info,
-		order_info,
-		ss.Iif(user.Order.IsPickup, "самовывоз", "заказ замера"),
-	)
-	msg, err := ctx.Bot().Send(chat, answer)
-	if err != nil {
-		ss.Log("ERROR", "Admin_BroadcastOrder", err.Error())
-		return
+	if title == ORDER_MEDIA {
+		broadcastMedia(ctx, user, chat, title)
+	} else {
+		broadcastMessage(ctx, user, chat, title)
 	}
-	OrderMessage{OrderID: user.Order.ID, Message: msg}.Add(chat.ID)
 }
 
 func Admin_RegisterOrderMessage(id_tele int64, id_order int, id_message int) {
