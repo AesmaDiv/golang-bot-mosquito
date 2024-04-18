@@ -80,15 +80,17 @@ func validateOrder(ctx tele.Context) error {
 	user := TUser{}.Get(ctx.Sender().ID)
 	if user.Phone == "" {
 		user.Status = EXP_CONTACT
-		return ctx.Send(MSG_ASKPHONE)
+		return ctx.Send(MSG_VALPHONE)
 	}
-	user.Order.IsPickup = strings.HasSuffix(ctx.Data(), "1")
-	user.Order.DateTime = ss.GetDateTime()
-	user.Order.CustomerID = user.TeleID
-	go func() {
-		user.Order.AddToDb(user.TeleID)
-		Admin_BroadcastOrder(ctx, *user, ADMIN_GROUP, ORDER_NEW)
-	}()
+	if user.Order != nil {
+		user.Order.IsPickup = strings.HasSuffix(ctx.Data(), "1")
+		user.Order.DateTime = ss.GetDateTime()
+		user.Order.CustomerID = user.TeleID
+		go func() {
+			user.Order.AddToDb(user.TeleID)
+			Admin_BroadcastOrder(ctx, *user, ADMIN_GROUP, ORDER_NEW)
+		}()
+	}
 	answer := answer_WillCallYou(user)
 
 	return ctx.Send(answer)

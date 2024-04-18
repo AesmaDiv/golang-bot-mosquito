@@ -119,9 +119,9 @@ func (o *TOrder) ParseOptions(text string) {
 	if len(data) == 2 {
 		switch data[0] {
 		case "frame":
-			o.Frame = ss.ToInt(data[1])
+			o.Frame = ss.StrToInt(data[1])
 		case "net":
-			o.Net = ss.ToInt(data[1])
+			o.Net = ss.StrToInt(data[1])
 		}
 	}
 }

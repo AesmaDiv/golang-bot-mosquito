@@ -3,6 +3,7 @@ package sugar
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -104,6 +105,30 @@ func ToFloat64(x any) float64 {
 		return val
 	}
 	return 0
+}
+func StrToInt64(x string) int64 {
+	if val, err := strconv.ParseInt(x, 10, 64); err == nil {
+		return val
+	}
+	return 0
+}
+func StrToInt(x string) int {
+	return int(StrToInt64(x))
+}
+func StrToFloat64(x string) float64 {
+	if val, err := strconv.ParseFloat(x, 64); err == nil {
+		return val
+	}
+	return 0.0
+}
+func StrToFloat(x string) float32 {
+	return float32(StrToFloat64(x))
+}
+func StrToBool(x string) bool {
+	if val, err := strconv.ParseBool(x); err == nil {
+		return val
+	}
+	return false
 }
 
 func Log(state string, name, msg string) {
