@@ -2,7 +2,6 @@ package telebot
 
 import (
 	"fmt"
-	db "golang-bot/database"
 	ss "golang-bot/sugar"
 
 	tele "gopkg.in/telebot.v3"
@@ -13,7 +12,17 @@ var ADMIN_GROUP = &tele.Chat{
 	Type: "group",
 }
 
-func Admin_GetData(helper db.Helper, data string, ctx tele.Context) {
+func Admin_ShowOptions(ctx tele.Context) {
+	user := TUser{}.Get(ctx.Sender().ID)
+	if user == nil {
+		return
+	}
+	if user.IsAdmin {
+		ctx.Send(MSG_ADMIN, Markups["OnAdmin"])
+	}
+}
+
+func Admin_GetData(data string, ctx tele.Context) {
 	//var answer string
 	switch data {
 	case ADMIN_CUSTOMERS:

@@ -80,9 +80,9 @@ func handleButton(ctx tele.Context) error {
 
 	switch data := ctx.Data(); {
 	case data == BTN_ADMIN:
-		return ctx.Send(MSG_ADMIN, Markups["OnAdmin"])
+		Admin_ShowOptions(ctx)
 	case strings.HasPrefix(data, "admin"):
-		Admin_GetData(helper, data, ctx)
+		Admin_GetData(data, ctx)
 
 	case data == BTN_SHOW_OPTIONS:
 		return create_Frames_n_Nets(ctx)
