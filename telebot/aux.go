@@ -56,6 +56,18 @@ func process_RequestCall(ctx tele.Context) error {
 	return ctx.Send(answer)
 }
 
+func process_Contact(user *TUser, msg string) string {
+	user.ParseContact(msg)
+	// если телефон мы не получили
+	if user.Phone == "" {
+		return MSG_ERRPHONE
+	}
+	user.DBUpdate_Contact(helper)
+	// формируем ответ для пользователя
+	answer := answer_WillCallYou(user)
+	return answer
+}
+
 func send_OrderInfo(ctx tele.Context) error {
 	user := TUser{}.Get(ctx.Sender().ID)
 	order := TOrder{}.FromUser(user)
@@ -96,36 +108,29 @@ func validateOrder(ctx tele.Context) error {
 	return ctx.Send(answer)
 }
 
-func process_Contact(user *TUser, msg string) string {
-	user.ParseContact(msg)
-	// если телефон мы не получили
-	if user.Phone == "" {
-		return MSG_ERRPHONE
-	}
-	user.DBUpdate_Contact(helper)
-	// формируем ответ для пользователя
-	answer := answer_WillCallYou(user)
-	return answer
-}
-
 func answer_WillCallYou(user *TUser) string {
 	return fmt.Sprintf("Благодарю, %s!\n%s по номеру %s", user.FirstName, MSG_WILLCALL, user.Phone)
 }
 
 func isPrivate(ctx tele.Context) bool {
-	ss.Log("CHECK", "USER", ss.ToString(ctx.Sender().ID))
-	ss.Log("CHECK", "GROUP", ss.ToString(ctx.Chat().ID))
+	user_id, chat_id := ctx.Sender().ID, ctx.Chat().ID
 	my_name := fmt.Sprintf("@%s", ctx.Bot().Me.Username)
 	if strings.HasPrefix(ctx.Message().Text, my_name) {
+		ss.Log("CHECK", "isPrivate",
+			fmt.Sprintf("(User: %d Chat: %d) Это приватное сообщение для бота", user_id, chat_id))
 		return true
 	}
 	if ctx.Sender().ID == ctx.Chat().ID {
+		ss.Log("CHECK", "isPrivate",
+			fmt.Sprintf("(User: %d Chat: %d) Это приватное сообщение", user_id, chat_id))
 		return true
 	}
+	ss.Log("CHECK", "isPrivate",
+		fmt.Sprintf("(User: %d Chat: %d) Это сообщение в групповом чате", user_id, chat_id))
 	return false
 }
 
-func broadcastMessage(ctx tele.Context, user TUser, chat *tele.Chat, title string) {
+func broadcastOrder(ctx tele.Context, user TUser, chat *tele.Chat, title string) {
 	user_info := parseUserInfo(map[string]any{
 		"datetime": user.Order.DateTime,
 		"phone":    user.Phone,

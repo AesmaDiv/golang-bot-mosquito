@@ -51,20 +51,10 @@ func (o *TOrder) AddToDb(tele_id int64) int {
 		ss.Log("ERROR", "Order.AddToDB", "Встроенная функция UpdateOrder вернула ошибку")
 		return 0
 	}
-	return ss.ToInt(result[0]["id"])
-	// o.ID = helper.Insert(
-	// 	"orders",
-	// 	[]map[string]any{{
-	// 		"id_customer": tele_id,
-	// 		"frame":       o.Frame,
-	// 		"net":         o.Net,
-	// 		"datetime":    o.DateTime,
-	// 		"is_pickup":   o.IsPickup,
-	// 		"sizes":       strings.Trim(fmt.Sprint(o.Sizes), "[]"),
-	// 	}},
-	// 	"id",
-	// )
-	// return o.ID
+	if val, ok := result[0]["id"]; ok {
+		o.ID = ss.ToInt(val)
+	}
+	return o.ID
 }
 
 func (o TOrder) FromDb(id int) *TOrder {

@@ -69,7 +69,7 @@ func Admin_BroadcastOrder(ctx tele.Context, user TUser, chat *tele.Chat, title s
 	if title == ORDER_MEDIA {
 		broadcastMedia(ctx, user, chat, title)
 	} else {
-		broadcastMessage(ctx, user, chat, title)
+		broadcastOrder(ctx, user, chat, title)
 	}
 }
 

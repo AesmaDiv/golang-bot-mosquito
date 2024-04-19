@@ -68,14 +68,14 @@ func (u TUser) FromDb(helper db.Helper, id int64) *TUser {
 
 func (u TUser) FromMap(row map[string]any) *TUser {
 	return &TUser{
-		TeleID:    ss.ToInt64(row["id_tele"]),
-		ChatID:    ss.ToInt64(row["id_chat"]),
+		TeleID:    ss.AnyToInt64(row["id_tele"]),
+		ChatID:    ss.AnyToInt64(row["id_chat"]),
 		UserName:  ss.ToString(row["uname"]),
 		FirstName: ss.ToString(row["fname"]),
 		LastName:  ss.ToString(row["lname"]),
 		Phone:     ss.ToString(row["phone"]),
 		Address:   ss.ToString(row["address"]),
-		IsAdmin:   ss.ToBool(row["is_admin"]),
+		IsAdmin:   ss.AnyToBool(row["is_admin"]),
 		Visited:   ss.ToString(row["visit"]),
 
 		Order:        nil,
