@@ -35,48 +35,77 @@ func DisconnectFromDb() {
 
 func PrepareMarkups(bot *tele.Bot) {
 	Markups = map[string]*tele.ReplyMarkup{
-		"OnStart":  CreateButtonRows(bot, handleButton, append(ON_START, "ADMIN"), "option"),
-		"OnAdmin":  CreateButtonRows(bot, handleButton, ON_ADMIN, "admin"),
-		"OnFrames": CreateOptionCols(bot, handleButton, FRAMES, "frame"),
-		"OnNets":   CreateOptionCols(bot, handleButton, NETS, "net"),
-		"OnOrder":  CreateOptionCols(bot, handleButton, ON_ORDER, "order"),
+		"OnStart":  CreateButtonRows(bot, handleButton, append(ARR_START, "ADMIN"), "option"),
+		"OnAdmin":  CreateButtonRows(bot, handleButton, ARR_ADMIN, "admin"),
+		"OnFrames": CreateOptionCols(bot, handleButton, ARR_FRAMES, "frame"),
+		"OnNets":   CreateOptionCols(bot, handleButton, ARR_NETS, "net"),
+		"OnOrder":  CreateOptionCols(bot, handleButton, ARR_ORDER, "order"),
 	}
 	ss.Log("INFO", "PrepareMarkups", "Подготовка набора кнопок")
 }
 
-func HandleStart(ctx tele.Context) error {
+func Handle(ctx tele.Context, mode string) error {
+	msg := ctx.Update().Message
+	rct := ctx.Update().MessageReaction
+	var sender *tele.User
+	if msg != nil {
+		sender = msg.Sender
+	}
+	if rct != nil {
+		sender = rct.User
+	}
+	if sender == nil {
+		ss.Log("ERROR", "Handle", "Не удалось получить данные пользователя")
+		return nil
+	}
+	ss.Log("INFO", "Handle", fmt.Sprintf("Подключение пользователя %d", sender.ID))
 	// идентификация юзера
-	sender := ctx.Sender()
-	if sender.ID != ctx.Chat().ID {
-		return ctx.Send(MSG_NOSTART)
+	user := TUser{}.Get(sender.ID, sender.Username, sender.FirstName, sender.LastName)
+	if !user.IsBanned {
+		switch mode {
+		case ON_START:
+			handleStart(ctx, user)
+		case ON_MESSAGE:
+			handleMessage(ctx, user)
+		case ON_REACTION:
+			handleReaction(ctx)
+		}
 	}
-	user := TUser{}.Get(sender.ID)
-	if user == nil {
-		// если не нашли - добавляем
-		user = TUser{}.New(sender.ID, ctx.Chat().ID, sender.Username, sender.FirstName)
-		user.AddToDb(helper)
+	return nil
+}
+
+func handleStart(ctx tele.Context, user *TUser) {
+	if user.IDTele != ctx.Chat().ID {
+		ss.Log("WARN", "handleStart",
+			fmt.Sprintf("Попытка стартовать из групового чата. Отказ! Пользователь %d", user.IDTele))
+		ctx.Send(MSG_NOSTART)
+		return
 	}
+	// формирование ответа на /start
+	answer := fmt.Sprintf("👋  %s, %s!\n%s", ss.GenGreeting(), user.FirstName, MSG_START)
+	msg, err := ctx.Bot().Send(ctx.Sender(), answer, Markups["OnStart"])
+	if err != nil {
+		ss.Log("ERROR", "handleStart",
+			fmt.Sprintf("%d :: %v", user.IDTele, err.Error()))
+		return
+	}
+	user.MessageLast = msg
 	// сброс заказа и ссылки на сообщение с ценой и последнее сообщение
 	user.Order = nil
 	user.MessageOrder = nil
-	user.MessageLast = nil
+	user.Status = EXP_OPTION
 	// обновляем время визита юзера
-	user.DBUpdate_Visit(helper)
+	user.UpdateVisit()
 	// обновляем в кэшэ пользователей
 	user.AddToCache()
-	ss.Log("INFO", "handleStart", fmt.Sprintf("Подключение пользователя %d:: %s", user.TeleID, user.FirstName))
-	// формирование ответа на /start
-	// приветствие
-	answer := fmt.Sprintf("👋  %s, %s!\n%s", ss.GenGreeting(), user.FirstName, MSG_START)
-
-	return ctx.Send(answer, Markups["OnStart"])
 }
 
 func handleButton(ctx tele.Context) error {
+	user := TUser{}.Get(ctx.Sender().ID)
 	ss.Log(
 		"INFO",
 		"handleButton",
-		fmt.Sprintf("Выбор пользователя %s:: %v", ctx.Sender().Username, ctx.Data()))
+		fmt.Sprintf("Выбор пользователя %s:: %v", user.FirstName, ctx.Data()))
 
 	switch data := ctx.Data(); {
 	case data == BTN_ADMIN:
@@ -84,43 +113,95 @@ func handleButton(ctx tele.Context) error {
 	case strings.HasPrefix(data, "admin"):
 		Admin_GetData(data, ctx)
 
-	case data == BTN_SHOW_OPTIONS:
-		return create_Frames_n_Nets(ctx)
-	case data == BTN_SEND_MEDIA:
-		// TODO
-		return process_RequestMedia(ctx)
+	case data == BTN_CALCULATOR:
+		if user.Status != EXP_OPTION {
+			// ЗАЩИТА от спамминга
+			// Если не ожидаем от пользователя этих действий - игнорим
+			ss.Log("WARN", "handleButton", fmt.Sprintf("Неожидаемый выбор калькулятора от пользователя %d", user.IDTele))
+			return nil
+		}
+		if create_Frames_n_Nets(ctx) {
+			_ = ctx.Bot().Delete(user.MessageLast)
+			user.MessageLast = nil
+			user.Status = EXP_SIZES
+		}
+	// case data == BTN_SEND_MEDIA:
+	// 	// TODO
+	// 	return process_RequestMedia(ctx)
 	case data == BTN_REQUEST_CALL:
-		return process_RequestCall(ctx)
-
+		if user.Status != EXP_OPTION {
+			// ЗАЩИТА от спамминга
+			// Если не ожидаем от пользователя этих действий - игнорим
+			ss.Log("WARN", "handleButton", fmt.Sprintf("Неожидаемый запрос обратного звонка от пользователя %d", user.IDTele))
+			return nil
+		}
+		user.Status = EXP_CONTACT
+		validateOrder(ctx, user)
 	case strings.HasPrefix(data, "frame") || strings.HasPrefix(data, "net"):
-		return process_Frames_n_Nets(ctx)
+		if user.Status != EXP_SIZES {
+			// ЗАЩИТА от спамминга
+			// Если не ожидаем от пользователя этих действий - игнорим
+			ss.Log("WARN", "handleButton", fmt.Sprintf("Неожидаемый выбор сетки от пользователя %d", user.IDTele))
+			return nil
+		}
+		process_Frames_n_Nets(ctx)
 	case strings.HasPrefix(data, "order"):
-		return validateOrder(ctx)
+		if user.Status != EXP_SIZES {
+			// ЗАЩИТА от спамминга
+			// Если не ожидаем от пользователя этих действий - игнорим
+			ss.Log("WARN", "handleButton", fmt.Sprintf("Неожидаемый оформление заказа от пользователя %d", user.IDTele))
+			return nil
+		}
+		user.Status = EXP_CONTACT
+		validateOrder(ctx, user)
 	}
 
 	return nil
 }
 
-func HandleMessage(ctx tele.Context) error {
+func handleMessage(ctx tele.Context, user *TUser) {
+	msg := ctx.Message().Text
+	if len(msg) > 64 {
+		// ЗАЩИТА
+		// Ограничене длины сообщения 64 символами
+		msg = msg[:63]
+	}
 	ss.Log(
 		"INFO",
 		"handleMessage",
-		fmt.Sprintf("Сообщение пользователя %s:: %s\n", ctx.Sender().Username, ctx.Message().Text))
+		fmt.Sprintf("Сообщение пользователя %s:: %s = %s", user.UserName, msg, user.Status))
 
-	if !isPrivate(ctx) {
-		return handleMessage_Group(ctx)
+	switch user.Status {
+	case EXP_CONTACT:
+		ss.Log("INFO", "handleMessage", "Обработка контакта")
+		answer := process_Contact(user, msg)
+		if answer != "" {
+			if answer != MSG_ERRPHONE {
+				validateOrder(ctx, user)
+				return
+			}
+			ctx.Send(answer)
+		}
+	case EXP_SIZES:
+		ss.Log("INFO", "handleMessage", "Обработка размеров")
+		order := TOrder{}.FromUser(user)
+		if order.ParseSizes(msg) {
+			_ = ctx.Delete()
+			send_OrderInfo(ctx)
+		}
 	}
-	user := TUser{}.Get(ctx.Sender().ID)
-	if user.IsAdmin {
-		return handleMessage_Admins(ctx, user)
-	}
-	return handleMessage_Users(ctx, user)
+	ss.Log("WARN", "handleMessage",
+		fmt.Sprintf("Не обрабатываемое сообщение от пользователя %d:: %s", ctx.Sender().ID, ctx.Message().Text),
+	)
+	ctx.Delete()
 }
-
-func HandleReaction(ctx tele.Context) error {
+func handleReaction(ctx tele.Context) {
 	reaction := ctx.Update().MessageReaction
-	go Admin_ReactToOrder(ctx, *reaction)
-	return nil
+	ss.Log("INFO", "handleReaction", fmt.Sprintf("Эмодзи от пользователя %d", reaction.User.ID))
+	user := TUser{}.Get(reaction.User.ID)
+	if user != nil && user.IsAdmin {
+		go Admin_ReactToOrder(ctx, *reaction)
+	}
 }
 
 func HandleMedia(ctx tele.Context) error {
@@ -129,6 +210,8 @@ func HandleMedia(ctx tele.Context) error {
 		return nil
 	}
 	if user.Status != EXP_MEDIA {
+		// ЗАЩИТА от спамминга
+		// Если не ожидаем от пользователя 'этих действий - игнорим
 		return nil
 	}
 	message := ctx.Message()
@@ -144,48 +227,4 @@ func HandleMedia(ctx tele.Context) error {
 	broadcastMedia(ctx, *user, ADMIN_GROUP, ORDER_MEDIA)
 
 	return ctx.Send(answer_WillCallYou(user))
-}
-
-func handleMessage_Group(ctx tele.Context) error {
-	msg := strings.ToLower(ctx.Message().Text)
-	if strings.Contains(msg, "заказ") {
-		Admin_GetOrders(ctx, true, true)
-	}
-	return nil
-}
-
-func handleMessage_Users(ctx tele.Context, user *TUser) error {
-	switch user.Status {
-	case EXP_CONTACT:
-		ss.Log("INFO", "handleMessage", "Обработка контакта")
-		answer := process_Contact(user, ctx.Message().Text)
-		if answer != "" {
-			if answer != MSG_ERRPHONE {
-				return validateOrder(ctx)
-				//Order_AddToDb(user.Order, user.TeleID)
-				// AddOrder(user)
-			}
-			return ctx.Send(answer)
-		}
-	case EXP_SIZES:
-		ss.Log("INFO", "handleMessage", "Обработка размеров")
-		order := TOrder{}.FromUser(user)
-		order.ParseSizes(ctx.Message().Text)
-		_ = ctx.Delete()
-
-		return send_OrderInfo(ctx)
-	}
-	ss.Log(
-		"ERROR",
-		"handleMessage",
-		fmt.Sprintf("Пользователь %d:: %s", ctx.Sender().ID, ctx.Message().Text),
-	)
-
-	return nil
-}
-
-func handleMessage_Admins(ctx tele.Context, user *TUser) error {
-	_ = user
-	// ctx.Bot().Send(ADMIN_GROUP, fmt.Sprintf("User %s:: %s", user.UserName, ctx.Message().Text))
-	return ctx.Send("Как прикажешь, Повелитель")
 }

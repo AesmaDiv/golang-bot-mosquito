@@ -1,6 +1,10 @@
 package telebot
 
 const (
+	ON_START    = "on_start"
+	ON_MESSAGE  = "on_message"
+	ON_REACTION = "on_reaction"
+
 	MSG_START    = "Чем я могу быть Вам полезен?"
 	MSG_FRAME    = "Выберите <b>РАМКУ</b>"
 	MSG_NET      = "Выберите <b>СЕТКУ</b>"
@@ -17,14 +21,17 @@ const (
 	ADMIN_MY_ORDERS   = "admin_1"
 	ADMIN_FREE_ORDERS = "admin_2"
 
-	BTN_SHOW_OPTIONS = "option_0"
-	BTN_SEND_MEDIA   = "option_1"
-	BTN_REQUEST_CALL = "option_2"
-	BTN_ADMIN        = "option_3"
+	BTN_CALCULATOR = "option_0"
+	// BTN_SEND_MEDIA   = "option_1"
+	BTN_REQUEST_CALL = "option_1"
+	BTN_ADMIN        = "option_2"
 
+	EXP_START   = "expectStart"
+	EXP_OPTION  = "expectOption"
 	EXP_CONTACT = "expectContact"
 	EXP_SIZES   = "expectSizes"
 	EXP_MEDIA   = "expectMedia"
+	EXP_NONE    = "expectNone"
 
 	ORDER_NEW   = "<b>≡≡==----- НОВЫЙ ЗАКАЗ -----==≡≡</b>"
 	ORDER_FREE  = "<b>≡≡==--- СВОБОДНЫЙ ЗАКАЗ ---==≡≡</b>"
@@ -35,21 +42,21 @@ const (
 )
 
 var (
-	ON_START = []string{
+	ARR_START = []string{
 		"Калькулятор москитных сеток",
-		"Оценка ремонта окон по медиафайлу",
 		"Заказать звонок",
+		// "Оценка ремонта окон по медиафайлу",
 	}
-	ON_ORDER = []string{
+	ARR_ORDER = []string{
 		"Заказать замер",
 		"Самовывоз",
 	}
-	ON_ADMIN = []string{
+	ARR_ADMIN = []string{
 		"Клиенты",
 		"Мои заказы",
 		"Свободные заказы",
 	}
-	FRAMES = []string{
+	ARR_FRAMES = []string{
 		"Рамочная 25мм",
 		"Раздвижная",
 		"Рулонная",
@@ -57,7 +64,7 @@ var (
 		"Дверная",
 		"Плиссе",
 	}
-	NETS = []string{
+	ARR_NETS = []string{
 		"Стандарт",
 		"Антикошка",
 		"Антипыль",
@@ -65,7 +72,7 @@ var (
 		"Алюминиевая",
 		"Нержавейка",
 	}
-	PRICES = [][]int{
+	ARR_PRICES = [][]int{
 		{640, 1700, 1350, 1100, 2100, 1500, 2700, 3050, 2950, 3200, 5000},
 		{1400, 2550, 2200, 1950, 2950, 2350, 3550, 3900, 3800, 4050, 6000},
 		{1050, 2200, 1850, 1600, 2600, 2000, 3200, 3550, 3450, 3750, 6000},

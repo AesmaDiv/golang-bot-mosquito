@@ -116,18 +116,29 @@ func (o *TOrder) ParseOptions(text string) {
 	}
 }
 
-func (o *TOrder) ParseSizes(text string) {
+func (o *TOrder) ParseSizes(text string) bool {
 	expr := regexp.MustCompile(`\d+`)
 	vals := expr.FindAllString(text, -1)
 	if len(vals) > 1 {
+		// ограничиваем кол-во пар размеров
 		l := len(vals) >> 1 << 1
+		if l > 6 {
+			l = 6
+		}
 		o.Sizes = make([]int, l)
 		for i := 0; i < l; i++ {
+			if len(vals[i]) > 5 {
+				// ограничиваем размер сетки
+				vals[i] = vals[i][:5]
+			}
 			if v, e := strconv.Atoi(vals[i]); e == nil {
 				o.Sizes[i] = v
 			}
 		}
+		return true
 	}
+
+	return false
 }
 
 func (o *TOrder) Display(for_admin bool) string {
@@ -145,12 +156,12 @@ func (o *TOrder) Display(for_admin bool) string {
 
 func (o *TOrder) getPriceForSquare() (float32, string) {
 	if o.Frame > -1 && o.Net > -1 {
-		price := float32(PRICES[o.Frame][o.Net])
+		price := float32(ARR_PRICES[o.Frame][o.Net])
 		result := fmt.Sprintf(
 			" <i>рамка:</i>  %s\n"+
 				" <i>сетка:</i>  %s\n"+
 				" <i>цена:</i>   %.2f руб. за м²\n",
-			FRAMES[o.Frame], NETS[o.Net], price)
+			ARR_FRAMES[o.Frame], ARR_NETS[o.Net], price)
 
 		return price, result
 	}

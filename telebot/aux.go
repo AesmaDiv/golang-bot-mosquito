@@ -10,14 +10,19 @@ import (
 
 var media_chan = make(chan *tele.Message, 10)
 
-func create_Frames_n_Nets(ctx tele.Context) error {
+func create_Frames_n_Nets(ctx tele.Context) bool {
 	// отправка списка рамок
 	err := ctx.Send(MSG_FRAME, Markups["OnFrames"])
 	if err != nil {
-		return err
+		return false
 	}
 	// отправка списка сеток
-	return ctx.Send(MSG_NET, Markups["OnNets"])
+	err = ctx.Send(MSG_NET, Markups["OnNets"])
+	if err != nil {
+		return false
+	}
+
+	return true
 }
 
 func process_Frames_n_Nets(ctx tele.Context) error {
@@ -40,19 +45,6 @@ func process_RequestMedia(ctx tele.Context) error {
 	if user.Phone == "" {
 		answer += ",\nсодержащему <b>номер Вашего телефона и Имя.</b>"
 	}
-	return ctx.Send(answer)
-}
-
-func process_RequestCall(ctx tele.Context) error {
-	answer, user := "", TUser{}.Get(ctx.Sender().ID)
-	if user.Phone == "" {
-		answer = MSG_ASKPHONE
-		user.Status = EXP_CONTACT
-	} else {
-		answer = answer_WillCallYou(user)
-		user.Status = ""
-	}
-
 	return ctx.Send(answer)
 }
 
@@ -80,6 +72,9 @@ func send_OrderInfo(ctx tele.Context) error {
 		user.MessageOrder = msg
 		return err
 	}
+	if user.MessageOrder.Text == answer {
+		return nil
+	}
 	msg, err := ctx.Bot().Edit(user.MessageOrder, answer, Markups["OnOrder"])
 	if err == nil {
 		user.MessageOrder = msg
@@ -88,22 +83,33 @@ func send_OrderInfo(ctx tele.Context) error {
 	return err
 }
 
-func validateOrder(ctx tele.Context) error {
-	user := TUser{}.Get(ctx.Sender().ID)
+func validateOrder(ctx tele.Context, user *TUser) error {
+	if user == nil {
+		ss.Log("WARN", "validateOrder",
+			fmt.Sprintf("Пользователь не %d не найдет. Ничего не делаем.", ctx.Sender().ID))
+		return nil
+	}
+	if user.Status != EXP_CONTACT {
+		ss.Log("WARN", "validateOrder",
+			fmt.Sprintf("Пользователь %d пытается создать заказ, но мы этого не ждём", user.IDTele))
+		return nil
+	}
 	if user.Phone == "" {
-		user.Status = EXP_CONTACT
+		ss.Log("INFO", "validateOrder",
+			fmt.Sprintf("У нас нет контактов пользователя %d. Запрашиваем", user.IDTele))
 		return ctx.Send(MSG_VALPHONE)
 	}
-	if user.Order != nil {
-		user.Order.IsPickup = strings.HasSuffix(ctx.Data(), "1")
-		user.Order.DateTime = ss.GetDateTime()
-		user.Order.CustomerID = user.TeleID
-		go func() {
-			user.Order.AddToDb(user.TeleID)
-			Admin_BroadcastOrder(ctx, *user, ADMIN_GROUP, ORDER_NEW)
-		}()
+	if user.Order == nil {
+		user.Order = TOrder{}.New()
 	}
+	user.Order.IsPickup = strings.HasSuffix(ctx.Data(), "1")
+	user.Order.DateTime = ss.GetDateTime()
+	user.Order.CustomerID = user.IDTele
+	go user.Order.AddToDb(user.IDTele)
+
+	user.Status = EXP_START
 	answer := answer_WillCallYou(user)
+	Admin_BroadcastOrder(ctx, *user, ADMIN_GROUP, ORDER_NEW)
 
 	return ctx.Send(answer)
 }
@@ -131,18 +137,18 @@ func isPrivate(ctx tele.Context) bool {
 }
 
 func broadcastOrder(ctx tele.Context, user TUser, chat *tele.Chat, title string) {
-	user_info := parseUserInfo(map[string]any{
-		"datetime": user.Order.DateTime,
-		"phone":    user.Phone,
-		"fname":    user.FirstName,
-	})
+	answer := fmt.Sprintf("%s\n%s\n%s : %s\n - заказ звонка\n", title, ss.GetDateTime(), user.Phone, user.FirstName)
 	order_info := user.Order.Display(true)
-	answer := fmt.Sprintf("%s\n%s%s- %s\n",
-		title,
-		user_info,
-		order_info,
-		ss.Iif(user.Order.IsPickup, "самовывоз", "заказ замера"),
-	)
+	if order_info != "" {
+		answer = fmt.Sprintf("%s\n%s\n%s : %s\n%s- %s\n",
+			title,
+			user.Order.DateTime,
+			user.Phone,
+			user.FirstName,
+			order_info,
+			ss.Iif(user.Order.IsPickup, "самовывоз", "заказ замера"),
+		)
+	}
 	msg, err := ctx.Bot().Send(chat, answer)
 	if err != nil {
 		ss.Log("ERROR", "Admin_BroadcastOrder", err.Error())
@@ -152,12 +158,7 @@ func broadcastOrder(ctx tele.Context, user TUser, chat *tele.Chat, title string)
 }
 
 func broadcastMedia(ctx tele.Context, user TUser, chat *tele.Chat, title string) {
-	user_info := parseUserInfo(map[string]any{
-		"datetime": ss.GetDateTime(),
-		"phone":    user.Phone,
-		"fname":    user.FirstName,
-	})
-	answer := fmt.Sprintf("%s\n%s\n", title, user_info)
+	answer := fmt.Sprintf("%s\n%s\n%s : %s", title, ss.GetDateTime(), user.Phone, user.FirstName)
 	media := <-media_chan
 	album := tele.Album{}
 	if photo := media.Photo; photo != nil {

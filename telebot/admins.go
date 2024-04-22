@@ -112,14 +112,6 @@ func Admin_ReactToOrder(ctx tele.Context, react tele.MessageReaction) {
 	}
 }
 
-func parseUserInfo(items map[string]any) string {
-	return fmt.Sprintf("%s\n%s: <b>%s</b>\n",
-		items["datetime"],
-		items["phone"],
-		items["fname"],
-	)
-}
-
 func parseUserWithOrder(item map[string]any) TUser {
 	return TUser{
 		FirstName: ss.ToString(item["fname"]),

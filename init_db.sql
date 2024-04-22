@@ -1,15 +1,15 @@
 DROP TABLE users;
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    id_tele BIGINT NOT NULL,
-    id_chat BIGINT,
-    uname    VARCHAR(50) NOT NULL,
-    fname    VARCHAR(50),
-    lname    VARCHAR(50),
-    phone    VARCHAR(15),
-    visit    TIMESTAMP WITHOUT TIME ZONE,
-    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
-    is_new   BOOLEAN NOT NULL DEFAULT TRUE
+    id_tele     BIGINT NOT NULL,
+    id_chat     BIGINT,
+    uname       VARCHAR(50),
+    fname       VARCHAR(50),
+    lname       VARCHAR(50),
+    phone       VARCHAR(15),
+    visit       TIMESTAMP WITHOUT TIME ZONE,
+    is_admin    BOOLEAN NOT NULL DEFAULT FALSE,
+    is_banned   BOOLEAN NOT NULL DEFAULT FALSE
 );
 DROP TABLE orders;
 CREATE TABLE orders (

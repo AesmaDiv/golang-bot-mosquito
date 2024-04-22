@@ -11,17 +11,17 @@ var Markups map[string]*tele.ReplyMarkup
 
 func CreateMarkup(bot *tele.Bot, f tele.HandlerFunc) *tele.ReplyMarkup {
 	markup := &tele.ReplyMarkup{}
-	l := ss.GetMaxLength(FRAMES, NETS)
+	l := ss.GetMaxLength(ARR_FRAMES, ARR_NETS)
 	var rows []tele.Row
 	for i := 0; i < l; i++ {
 		var btn1, btn2 tele.Btn
-		if btn1 = markup.Data(" ", fmt.Sprintf("dull_%d", i)); i < len(FRAMES) {
+		if btn1 = markup.Data(" ", fmt.Sprintf("dull_%d", i)); i < len(ARR_FRAMES) {
 			name := fmt.Sprintf("frame_%d", i)
-			btn1 = markup.Data(FRAMES[i], name, name)
+			btn1 = markup.Data(ARR_FRAMES[i], name, name)
 		}
-		if btn2 = markup.Data(" ", fmt.Sprintf("dull_%d", i)); i < len(NETS) {
+		if btn2 = markup.Data(" ", fmt.Sprintf("dull_%d", i)); i < len(ARR_NETS) {
 			name := fmt.Sprintf("net_%d", i)
-			btn2 = markup.Data(NETS[i], name, name)
+			btn2 = markup.Data(ARR_NETS[i], name, name)
 		}
 		bot.Handle(&btn1, f)
 		bot.Handle(&btn2, f)

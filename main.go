@@ -27,19 +27,12 @@ func main() {
 	pref := tele.Settings{
 		Token: token,
 		Poller: &tele.LongPoller{
-			Timeout: 1 * time.Second,
+			Timeout:      1 * time.Second,
+			LastUpdateID: -2,
+			Limit:        100,
 			AllowedUpdates: []string{
 				"message",
-				"edited_message",
-				"channel_post",
-				"edited_channel_post",
-				"inline_query",
-				"chosen_inline_result",
 				"callback_query",
-				"shipping_query",
-				"pre_checkout_query",
-				"poll",
-				"poll_answer",
 				"message_reaction",
 				"message_reaction_count",
 			},
@@ -49,13 +42,12 @@ func main() {
 	bot, err := tele.NewBot(pref)
 	ss.CheckError(err)
 
-	bot.Handle("/start", tb.HandleStart)
-	bot.Handle(tele.OnText, tb.HandleMessage)
-	bot.Handle(tele.OnReaction, tb.HandleReaction)
-	bot.Handle(tele.OnMedia, tb.HandleMedia)
+	bot.Handle("/start", func(ctx tele.Context) error { return tb.Handle(ctx, tb.ON_START) })
+	bot.Handle(tele.OnText, func(ctx tele.Context) error { return tb.Handle(ctx, tb.ON_MESSAGE) })
+	bot.Handle(tele.OnReaction, func(ctx tele.Context) error { return tb.Handle(ctx, tb.ON_REACTION) })
+	// bot.Handle(tele.OnMedia, tb.HandleMedia)
 
 	tb.PrepareMarkups(bot)
-	// bot.Handle(tele.OnAddedToGroup, tb.HandleGroup)
 	ss.Log("INFO", "TELEBOT", "Запуск бота..")
 	bot.Start()
 

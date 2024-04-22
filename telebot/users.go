@@ -12,15 +12,15 @@ import (
 
 type TUser struct {
 	// поля из БД
-	ChatID    int64
-	TeleID    int64
+	IDChat    int64
+	IDTele    int64
 	UserName  string
 	FirstName string
 	LastName  string
 	Phone     string
-	Address   string
-	IsAdmin   bool
 	Visited   string
+	IsAdmin   bool
+	IsBanned  bool
 	// поля в кэше
 	Order        *TOrder
 	Status       string
@@ -28,68 +28,100 @@ type TUser struct {
 	MessageLast  *tele.Message
 }
 
-var USERS = make(map[int64]*TUser)
+var _users = make(map[int64]*TUser)
 
-func (u TUser) New(id int64, chat_id int64, username string, firstname string) *TUser {
+func (u TUser) New(id int64, names ...string) *TUser {
+	var uname, fname, lname string
+	if len(names) > 0 {
+		uname = names[0]
+	}
+	if len(names) > 1 {
+		fname = names[1]
+	}
+	if len(names) > 2 {
+		lname = names[2]
+	}
 	return &TUser{
-		TeleID:    id,
-		ChatID:    chat_id,
-		UserName:  username,
-		FirstName: firstname,
+		IDTele:    id,
+		IDChat:    id,
+		UserName:  uname,
+		FirstName: fname,
+		LastName:  lname,
+		Phone:     "",
+		Visited:   ss.GetDateTime(),
+		IsAdmin:   false,
+		IsBanned:  false,
 
-		Visited:      ss.GetDateTime(),
 		Order:        nil,
-		Status:       "idle",
+		Status:       EXP_START,
 		MessageOrder: nil,
+		MessageLast:  nil,
 	}
 }
 
-func (u TUser) Get(id int64) *TUser {
+func (u TUser) FromMap(row map[string]any) *TUser {
+	return &TUser{
+		IDTele:    ss.AnyToInt64(row["id_tele"]),
+		IDChat:    ss.AnyToInt64(row["id_chat"]),
+		UserName:  ss.ToString(row["uname"]),
+		FirstName: ss.ToString(row["fname"]),
+		LastName:  ss.ToString(row["lname"]),
+		Phone:     ss.ToString(row["phone"]),
+		Visited:   ss.ToString(row["visit"]),
+		IsAdmin:   ss.AnyToBool(row["is_admin"]),
+		IsBanned:  ss.AnyToBool(row["is_banned"]),
+
+		Order:        nil,
+		Status:       EXP_START,
+		MessageOrder: nil,
+		MessageLast:  nil,
+	}
+}
+func (u TUser) Get(id int64, names ...string) *TUser {
+	ss.Log("INFO", "user.Get", fmt.Sprintf("Идентификация пользователя %d", id))
 	var user *TUser
 	// сначала ищу в кэше
-	user, found := USERS[id]
-	if !found {
+	user, ok := _users[id]
+	if !ok {
+		ss.Log("INFO", "user.Get", fmt.Sprintf("Пользователь %d НЕ найден в кэше", id))
 		// если не найден, ищу в БД
-		user = TUser{}.FromDb(helper, id)
-		// если нет в БД, то и ладно, потом создадим
+		user = TUser{}.FromDb(id)
+		if user == nil {
+			ss.Log("INFO", "user.Get", fmt.Sprintf("Пользователь %d НЕ найден в БД. Создали нового", id))
+			// если нет в БД, то создаю нового
+			user = TUser{}.New(id, names...)
+			user.AddToDb()
+		} else {
+			ss.Log("INFO", "user.Get", fmt.Sprintf("Пользователь %d найден в БД", id))
+		}
+		user.AddToCache()
+	} else {
+		ss.Log("INFO", "user.Get", fmt.Sprintf("Пользователь %d найден в кэше", id))
 	}
 
 	return user
 }
 
-func (u TUser) FromDb(helper db.Helper, id int64) *TUser {
+func (u TUser) FromDb(id int64) *TUser {
 	user := helper.Select("users", []string{"*"}, map[string]any{"id_tele": id})
 	if len(user) == 0 {
+		ss.Log("INFO", "user.fromDB",
+			fmt.Sprintf("Пользователь %d НЕ найден в БД", id))
 		return nil
+	} else {
+		ss.Log("INFO", "user.fromDB",
+			fmt.Sprintf("Пользователь %d найден в БД", id))
 	}
 
 	return TUser{}.FromMap(user[0])
 }
 
-func (u TUser) FromMap(row map[string]any) *TUser {
-	return &TUser{
-		TeleID:    ss.AnyToInt64(row["id_tele"]),
-		ChatID:    ss.AnyToInt64(row["id_chat"]),
-		UserName:  ss.ToString(row["uname"]),
-		FirstName: ss.ToString(row["fname"]),
-		LastName:  ss.ToString(row["lname"]),
-		Phone:     ss.ToString(row["phone"]),
-		Address:   ss.ToString(row["address"]),
-		IsAdmin:   ss.AnyToBool(row["is_admin"]),
-		Visited:   ss.ToString(row["visit"]),
-
-		Order:        nil,
-		Status:       "idle",
-		MessageOrder: nil,
-	}
-}
-
-func (u TUser) AddToDb(helper db.Helper) {
+func (u TUser) AddToDb() {
 	go helper.Insert(
 		"users",
 		[]map[string]any{{
-			"id_tele": u.TeleID,
-			"id_chat": u.ChatID,
+			"id_tele": u.IDTele,
+			"id_chat": u.IDChat,
 			"uname":   u.UserName,
 			"fname":   u.FirstName,
 		}},
@@ -97,7 +129,9 @@ func (u TUser) AddToDb(helper db.Helper) {
 }
 
 func (u TUser) AddToCache() {
-	USERS[u.TeleID] = &u
+	ss.Log("INFO", "user.addToCache",
+		fmt.Sprintf("Добавление пользователя %d в кэш", u.IDTele))
+	_users[u.IDTele] = &u
 }
 
 func (u TUser) Display() string {
@@ -121,21 +155,21 @@ func (u TUser) DBUpdate_Contact(helper db.Helper) {
 	go helper.Update(
 		"users",
 		user_data,
-		map[string]any{"id_tele": u.TeleID},
+		map[string]any{"id_tele": u.IDTele},
 	)
 }
 
-func (u TUser) DBUpdate_Visit(helper db.Helper) {
+func (u TUser) UpdateVisit() {
 	u.Visited = ss.GetDateTime()
 	res := helper.Update(
 		"users",
 		map[string]any{"visit": u.Visited},
-		map[string]any{"id_tele": u.TeleID},
+		map[string]any{"id_tele": u.IDTele},
 	)
 	if res > 0 {
-		ss.Log("SUCCESS", "UpdateUserVisit", u.UserName)
+		ss.Log("INFO", "UpdateUserVisit", fmt.Sprintf("Обновлено время посещения для пользователя %d", u.IDTele))
 	} else {
-		ss.Log("FAILED", "UpdateUserVisit", u.UserName)
+		ss.Log("FAILED", "UpdateUserVisit", fmt.Sprintf("Не удалось обновить время посещения для пользователя %d", u.IDTele))
 	}
 }
 
